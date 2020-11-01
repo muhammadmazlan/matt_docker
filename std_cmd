@@ -1,0 +1,98 @@
+// getting started guide
+docker run -d -p 80:80 docker/getting-started
+
+// Dockerfile
+FROM node:12-alpine
+WORKDIR /app
+COPY . .
+RUN yarn install --production
+CMD ["node", "src/index.js"]
+
+// Start dockerfile build
+docker build -t getting-started .
+
+// Start docker
+docker run -dp 3000:3000 getting-started
+docker run -dp 3000:3000 -v todo-db:/etc/todos getting-started   //with persistant volume
+docker run -d \
+    --network todo-app --network-alias mysql \
+    -v todo-mysql-data:/var/lib/mysql \
+    -e MYSQL_ROOT_PASSWORD=secret \
+    -e MYSQL_DATABASE=todos \
+    mysql:5.7                                                   // start with mysql with internal network
+docker run -dp 3000:3000 \
+  -w /app -v "$(pwd):/app" \
+  --network todo-app \
+  -e MYSQL_HOST=mysql \
+  -e MYSQL_USER=root \
+  -e MYSQL_PASSWORD=secret \
+  -e MYSQL_DB=todos \
+  node:12-alpine \
+  sh -c "yarn install && yarn run dev"                          // start mysql
+
+// After update file, need to rebuild back
+// to check docker running
+docker ps
+
+// to stop docker
+docker rm -f <the-container-id>
+
+// to create persistant volume
+docker volume create todo-db
+
+// to check persistant volume
+docker volume inspect todo-db
+
+//to check docker container log
+docker logs -f <container-id>
+
+// to create internal docker network
+docker network create todo-app
+
+// direct run shell command
+docker exec -it <mysql-container-id> mysql -p
+
+// internal DNS
+docker run -it --network todo-app nicolaka/netshoot
+dig mysql
+
+// DOCKER COMPOSE
+// to check docker compose
+docker-compose version
+
+// docker-compose.yaml
+version: "3.7"
+
+services:
+  app:
+    image: node:12-alpine
+    command: sh -c "yarn install && yarn run dev"
+    ports:
+      - 3000:3000
+    working_dir: /app
+    volumes:
+      - ./:/app
+    environment:
+      MYSQL_HOST: mysql
+      MYSQL_USER: root
+      MYSQL_PASSWORD: secret
+      MYSQL_DB: todos
+
+  mysql:
+    image: mysql:5.7
+    volumes:
+      - todo-mysql-data:/var/lib/mysql
+    environment: 
+      MYSQL_ROOT_PASSWORD: secret
+      MYSQL_DATABASE: todos
+
+volumes:
+  todo-mysql-data:
+  
+// to start docker compose
+docker-compose up -d
+// to stop docker compose
+docker-compose down
+
+// check docker build history
+docker image history
